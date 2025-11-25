@@ -7,62 +7,44 @@ import { AIService } from "@/lib/ai-service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Home, Star, Award, RefreshCw, Download, Printer } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 export default function ResultPage() {
     const { user, currentStory } = useStore();
     const router = useRouter();
-    const [rewardImage, setRewardImage] = useState<string | null>(null);
+    const [rewardImage, setRewardImage] = useState<string>("");
+    const [imageError, setImageError] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const lastSession = user?.history[0];
-
-    const [loadingImage, setLoadingImage] = useState(false);
 
     useEffect(() => {
         if (!user || !currentStory || !lastSession) {
             router.push("/dashboard");
             return;
         }
-
-        const loadRewardImage = async () => {
-            setLoadingImage(true);
-            try {
-                // 1. Get the URL from AI Service
-                const imageUrl = await AIService.generateRewardImage(currentStory);
-                console.log("Generated Target URL:", imageUrl);
-
-                // 2. Fetch via our Server-Side Proxy to avoid Browser/CORS/500 issues
-                const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
-                console.log("Fetching via Proxy:", proxyUrl);
-
-                const response = await fetch(proxyUrl);
-
-                if (!response.ok) {
-                    throw new Error(`Proxy fetch failed with status: ${response.status} ${response.statusText}`);
-                }
-
-                const blob = await response.blob();
-                const objectUrl = URL.createObjectURL(blob);
-                setRewardImage(objectUrl);
-                console.log("Image loaded successfully via Blob");
-
-            } catch (error) {
-                console.error("Failed to load reward image:", error);
-                setRewardImage(`https://placehold.co/600x800/orange/white?text=${encodeURIComponent(currentStory?.title || 'Resim Yok')}`);
-            } finally {
-                setLoadingImage(false);
-            }
-        };
-
-        loadRewardImage();
-
-        return () => {
-            if (rewardImage && rewardImage.startsWith('blob:')) {
-                URL.revokeObjectURL(rewardImage);
-            }
-        };
+        generateImage();
     }, [user, currentStory, lastSession, router]);
+
+    const generateImage = () => {
+        setIsLoading(true);
+        setImageError(false);
+        AIService.generateRewardImage(currentStory!)
+            .then(url => {
+                console.log("Image URL:", url);
+                setRewardImage(url);
+                // Note: isLoading stays true until image onLoad fires
+            })
+            .catch(err => {
+                console.error("Image generation failed", err);
+                setImageError(true);
+                setIsLoading(false);
+            });
+    };
+
+    const handleRetry = () => {
+        generateImage();
+    };
 
     const handleDownload = async () => {
         if (!rewardImage) return;
@@ -145,26 +127,55 @@ export default function ResultPage() {
                 </Card>
 
                 {/* Reward Image */}
-                {rewardImage && (
-                    <Card className="overflow-hidden border-2 border-amber-200 shadow-lg">
-                        <CardHeader className="bg-amber-50 border-b border-amber-100 py-3">
-                            <CardTitle className="text-center text-amber-800 text-base">
-                                🎁 Boyama Sayfan Hazır!
-                            </CardTitle>
-                        </CardHeader>
-                        <div className="relative aspect-[3/4] w-full bg-white">
+                <Card className="overflow-hidden border-2 border-amber-200 shadow-lg">
+                    <CardHeader className="bg-amber-50 border-b border-amber-100 py-3">
+                        <CardTitle className="text-center text-amber-800 text-base">
+                            🎁 Boyama Sayfan Hazır!
+                        </CardTitle>
+                    </CardHeader>
+                    <div className="relative aspect-[3/4] w-full bg-white flex items-center justify-center bg-slate-50">
+                        {isLoading && !imageError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 text-amber-600">
+                                <RefreshCw className="w-8 h-8 animate-spin mb-2" />
+                                <span className="text-sm font-medium">Resim hazırlanıyor...</span>
+                            </div>
+                        )}
+
+                        {rewardImage && !imageError ? (
                             <img
                                 src={rewardImage}
-                                alt="Reward"
+                                alt="Boyama Sayfası"
                                 className="object-contain w-full h-full p-2"
-                                referrerPolicy="no-referrer"
-                                crossOrigin="anonymous"
+                                onLoad={() => setIsLoading(false)}
                                 onError={(e) => {
-                                    console.error("Image load error, switching to placeholder");
-                                    e.currentTarget.src = `https://placehold.co/600x800/orange/white?text=${encodeURIComponent(currentStory?.title || 'Resim Yok')}`;
+                                    console.error("IMG tag error, switching to fallback. Failed URL:", e.currentTarget.src);
+                                    // Prevent infinite loop if fallback fails
+                                    if (e.currentTarget.src.includes("placehold.co")) {
+                                        setImageError(true);
+                                        e.currentTarget.style.display = "none";
+                                    } else {
+                                        e.currentTarget.src = `https://placehold.co/768x1024/FEF3C7/92400E?text=${encodeURIComponent('Resim Sunucusu Hatası')}`;
+                                    }
+                                    setIsLoading(false);
                                 }}
                             />
-                        </div>
+                        ) : null}
+
+                        {imageError && (
+                            <div className="text-center p-8 text-amber-600 z-20">
+                                <p className="mb-4">Resim yüklenemedi.</p>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleRetry}
+                                    className="text-amber-700 border-amber-200 hover:bg-amber-50"
+                                >
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Tekrar Dene
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                    {rewardImage && !isLoading && !imageError && (
                         <div className="flex border-t border-amber-100 divide-x divide-amber-100">
                             <button
                                 onClick={handlePrint}
@@ -181,8 +192,8 @@ export default function ResultPage() {
                                 İndir
                             </button>
                         </div>
-                    </Card>
-                )}
+                    )}
+                </Card>
 
                 {/* Actions */}
                 <div className="flex gap-3 pt-4">

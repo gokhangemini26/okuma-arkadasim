@@ -1,4 +1,7 @@
-const API_KEY = "AIzaSyBM-Y35wMvSoDIczDPh5LDjtdm3cWb9ZW4";
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+
+const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 async function listModels() {
     try {
