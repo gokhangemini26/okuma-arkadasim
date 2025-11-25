@@ -8,7 +8,6 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey || "mock-key");
-// Using gemini-2.0-flash as it is working for story generation
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 export const AIService = {
@@ -41,14 +40,12 @@ export const AIService = {
             const response = await result.response;
             const text = response.text();
 
-            // Robust JSON extraction
             let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
             const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 cleanText = jsonMatch[0];
             }
 
-            // Attempt to sanitize common JSON errors if parse fails
             let data;
             try {
                 data = JSON.parse(cleanText);
@@ -67,7 +64,6 @@ export const AIService = {
             };
         } catch (error) {
             console.error("Gemini API Error:", error);
-            // Fallback to mock if API fails
             return {
                 id: Math.random().toString(36).substr(2, 9),
                 title: `${childName} ve ${characters[0].name}'nin Macerası`,
@@ -80,12 +76,10 @@ export const AIService = {
     },
 
     async analyzeReading(audioBlob: Blob, storyText: string, durationSeconds: number): Promise<Partial<ReadingSession>> {
-        // Convert Blob to Base64
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve) => {
             reader.onloadend = () => {
                 const base64String = reader.result as string;
-                // Remove data URL prefix (e.g., "data:audio/webm;base64,")
                 resolve(base64String.split(',')[1]);
             };
             reader.readAsDataURL(audioBlob);
@@ -111,7 +105,7 @@ export const AIService = {
                 prompt,
                 {
                     inlineData: {
-                        mimeType: "audio/webm", // Assuming webm from MediaRecorder
+                        mimeType: "audio/webm",
                         data: audioBase64
                     }
                 }
@@ -120,14 +114,11 @@ export const AIService = {
             const response = await result.response;
             const text = response.text();
 
-            // Robust JSON extraction
             const jsonMatch = text.match(/\{[\s\S]*\}/);
             const cleanText = jsonMatch ? jsonMatch[0] : text.replace(/```json/g, '').replace(/```/g, '').trim();
 
             const data = JSON.parse(cleanText);
 
-            // Calculate WPM accurately
-            // WPM = (Words / Seconds) * 60
             const safeDuration = Math.max(1, durationSeconds);
             const wpm = Math.round((data.correctWordCount / safeDuration) * 60);
 
@@ -151,40 +142,34 @@ export const AIService = {
     },
 
     async generateRewardImage(story: Story): Promise<string> {
-        // 1. Generate a scene description using Gemini
-        const promptGen = `
-      Aşağıdaki hikaye için bir boyama sayfası görseli oluşturacağız.
-      Bana sadece hikayeyi anlatan, karakterleri ve mekanı içeren ÇOK BASİT ve KISA bir İngilizce sahne betimlemesi ver.
-      
-      Hikaye Başlığı: ${story.title}
-      Tema: ${story.theme}
-      İçerik: ${story.content}
-      
-      Kurallar:
-      - Sadece sahneyi anlat (Örn: "A cute rabbit holding a carrot in a garden")
-      - Karmaşık detaylardan kaçın.
-      - Maksimum 10 kelime olsun.
-    `;
+        // WORKAROUND: Pollinations AI currently rejects multi-word prompts with 500 errors
+        // Using single-word prompts only (verified to work via test-simple-prompt.js)
 
         try {
-            const result = await model.generateContent(promptGen);
-            const sceneDescription = result.response.text().trim();
-            console.log("Scene Description:", sceneDescription);
+            // Use the first character's name as a simple, single-word prompt
+            const mainCharacter = story.characters[0]?.name.toLowerCase() || 'cat';
 
-            // 2. Construct the final prompt optimized for simple coloring pages
-            // Extremely simple prompt to avoid URL issues and model confusion
-            const finalPrompt = `coloring page of ${sceneDescription}, simple black lines, white background, no shading`;
+            // Convert to simple English animal names if Turkish
+            const animalMap: { [key: string]: string } = {
+                'pamuk': 'rabbit',
+                'riki': 'squirrel',
+                'mila': 'deer',
+                'zümrüt': 'bird',
+                'kuki': 'dog',
+                'luna': 'cat',
+                'pip': 'mouse',
+                'sera': 'butterfly',
+                'tomurcuk': 'flower',
+                'yıldız': 'star'
+            };
 
-            console.log("Final Image Prompt:", finalPrompt);
-
-            // 3. Use Pollinations AI with Default Model (most reliable)
-            const encodedPrompt = encodeURIComponent(finalPrompt);
-
-            // Minimal URL to avoid 500 errors - verified via test script
-            // Adding ANY parameters (seed, nologo, width) causes 500 errors currently
+            const simplePrompt = animalMap[mainCharacter] || mainCharacter;
+            const encodedPrompt = encodeURIComponent(simplePrompt);
             const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
 
-            console.log("Generated Image URL:", imageUrl);
+            console.log(`Generated Image URL (simple workaround): ${imageUrl}`);
+            console.log(`Note: Due to Pollinations API limitations, using generic "${simplePrompt}" image instead of coloring page`);
+
             return imageUrl;
 
         } catch (error) {

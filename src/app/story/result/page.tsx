@@ -30,13 +30,16 @@ export default function ResultPage() {
             try {
                 // 1. Get the URL from AI Service
                 const imageUrl = await AIService.generateRewardImage(currentStory);
-                console.log("Attempting to fetch image from:", imageUrl);
+                console.log("Generated Target URL:", imageUrl);
 
-                // 2. Fetch the image data directly (Client-side Proxy)
-                const response = await fetch(imageUrl);
+                // 2. Fetch via our Server-Side Proxy to avoid Browser/CORS/500 issues
+                const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+                console.log("Fetching via Proxy:", proxyUrl);
+
+                const response = await fetch(proxyUrl);
 
                 if (!response.ok) {
-                    throw new Error(`Image fetch failed with status: ${response.status} ${response.statusText}`);
+                    throw new Error(`Proxy fetch failed with status: ${response.status} ${response.statusText}`);
                 }
 
                 const blob = await response.blob();
@@ -46,8 +49,7 @@ export default function ResultPage() {
 
             } catch (error) {
                 console.error("Failed to load reward image:", error);
-                // Fallback to placeholder
-                setRewardImage(`https://placehold.co/600x800/orange/white?text=${encodeURIComponent(currentStory.title)}`);
+                setRewardImage(`https://placehold.co/600x800/orange/white?text=${encodeURIComponent(currentStory?.title || 'Resim Yok')}`);
             } finally {
                 setLoadingImage(false);
             }
@@ -55,7 +57,6 @@ export default function ResultPage() {
 
         loadRewardImage();
 
-        // Cleanup function to revoke object URL
         return () => {
             if (rewardImage && rewardImage.startsWith('blob:')) {
                 URL.revokeObjectURL(rewardImage);
