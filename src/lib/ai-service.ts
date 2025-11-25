@@ -10,7 +10,7 @@ const storyModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 export const AIService = {
     async generateStory(childName: string, characters: Character[]): Promise<Story> {
         const characterNames = characters.map(c => c.name).join(', ');
-        const prompt = `Kullanıcının ismi: ${childName}\nSeçilen karakterler: ${characterNames}\n\nBu isimleri kullanarak didaktik bir hikaye yaz.\n- Hikaye 200-250 kelime aralığında olmalı.\n- Okuyucular 5-10 yaş aralığında olacağı için hikayeler bu yaşlara hitap etmeli.\n- Etnik, ahlaki gibi sorunlar ve çekinceler içermemeli.\n- Hikaye akıcı ve anlaşılır olmalı.\n- Hikayenin başlığı da olsun.\n\nÇıktı formatı JSON olmalı.\nÖNEMLİ: JSON içindeki metinlerde çift tırnak (\") kullanacaksan mutlaka ters eğik çizgi ile kaçır (\\\"). Örn: \"Ali dedi ki: \\\"Merhaba\\\"\"\n\n{\n  \"title\": \"Hikaye Başlığı\",\n  \"content\": \"Hikaye metni... (Çift tırnakları kaçırmayı unutma!)\",\n  \"theme\": \"Hikayenin ana teması (örn: Dostluk)\"\n}`;
+        const prompt = `Kullanıcının ismi: ${childName}\nSeçilen karakterler: ${characterNames}\n\nBu isimleri kullanarak didaktik ve sürükleyici bir hikaye yaz.\n\nKURALLAR:\n1. Hikaye EN AZ 300 kelime olmalı (Lütfen kısa kesme).\n2. Giriş, gelişme ve sonuç bölümleri belirgin olmalı.\n3. Olaylar ve mekanlar detaylı betimlenmeli.\n4. Okuyucular 5-10 yaş aralığında, dil akıcı ve anlaşılır olmalı.\n5. Etnik, ahlaki sorunlar içermemeli.\n6. Mutlaka bir başlığı olmalı.\n\nÇıktı formatı JSON olmalı:\n{\n  "title": "Hikaye Başlığı",\n  "content": "Hikaye metni... (Uzun ve detaylı)",\n  "theme": "Ana tema"\n}`;
         try {
             const result = await storyModel.generateContent(prompt);
             const text = result.response.text();
