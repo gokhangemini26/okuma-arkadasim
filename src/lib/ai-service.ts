@@ -19,9 +19,18 @@ export const AIService = {
             if (jsonMatch) cleanText = jsonMatch[0];
             const data = JSON.parse(cleanText);
             return { id: crypto.randomUUID(), title: data.title, content: data.content, theme: data.theme, createdAt: new Date(), characters };
-        } catch (error) {
+        } catch (error: any) {
             console.error("Story generation failed:", error);
-            return { id: crypto.randomUUID(), title: `${childName} ve ${characterNames} Macerası`, content: `Bir gün ${childName} ve arkadaşları ${characterNames} birlikte macera yaşadılar.`, theme: "Dostluk", createdAt: new Date(), characters };
+            // HATA AYIKLAMA İÇİN: Hatayı hikaye metni olarak göster
+            const errorMessage = error?.message || "Bilinmeyen hata";
+            return {
+                id: crypto.randomUUID(),
+                title: "Hata Oluştu",
+                content: `Üzgünüm, hikaye oluşturulurken bir sorun çıktı.\n\nHata Detayı: ${errorMessage}\n\nLütfen Vercel Environment Variables ayarlarını kontrol et.`,
+                theme: "Hata",
+                createdAt: new Date(),
+                characters
+            };
         }
     },
 
