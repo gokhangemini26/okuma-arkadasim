@@ -121,12 +121,16 @@ export default function ResultPage() {
                             </CardTitle>
                         </CardHeader>
                         <div className="relative aspect-[3/4] w-full bg-white">
-                            <Image
+                            <img
                                 src={rewardImage}
                                 alt="Reward"
-                                fill
-                                className="object-contain p-2"
-                                unoptimized
+                                className="object-contain w-full h-full p-2"
+                                referrerPolicy="no-referrer"
+                                crossOrigin="anonymous"
+                                onError={(e) => {
+                                    console.error("Image load error, switching to placeholder");
+                                    e.currentTarget.src = `https://placehold.co/600x800/orange/white?text=${encodeURIComponent(currentStory?.title || 'Resim Yok')}`;
+                                }}
                             />
                         </div>
                         <div className="flex border-t border-amber-100 divide-x divide-amber-100">

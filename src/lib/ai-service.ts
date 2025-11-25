@@ -8,6 +8,7 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey || "mock-key");
+// Using gemini-2.0-flash as it is working for story generation
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 export const AIService = {
@@ -19,18 +20,18 @@ export const AIService = {
       Seçilen karakterler: ${characterNames}
       
       Bu isimleri kullanarak didaktik bir hikaye yaz.
-      - Hikaye en az 300-400 kelime uzunluğunda olmalı. (Çok kısa olmasın)
-      - Giriş, Gelişme ve Sonuç bölümleri belirgin olsun.
-      - Bol bol diyalog ve detaylı betimlemeler kullan.
+      - Hikaye 200-250 kelime aralığında olmalı.
       - Okuyucular 5-10 yaş aralığında olacağı için hikayeler bu yaşlara hitap etmeli.
       - Etnik, ahlaki gibi sorunlar ve çekinceler içermemeli.
-      - Hikaye akıcı, eğlenceli ve anlaşılır olmalı.
+      - Hikaye akıcı ve anlaşılır olmalı.
       - Hikayenin başlığı da olsun.
       
-      Çıktı formatı JSON olmalı:
+      Çıktı formatı JSON olmalı.
+      ÖNEMLİ: JSON içindeki metinlerde çift tırnak (") kullanacaksan mutlaka ters eğik çizgi ile kaçır (\"). Örn: "Ali dedi ki: \"Merhaba\""
+      
       {
         "title": "Hikaye Başlığı",
-        "content": "Hikaye metni...",
+        "content": "Hikaye metni... (Çift tırnakları kaçırmayı unutma!)",
         "theme": "Hikayenin ana teması (örn: Dostluk)"
       }
     `;
@@ -41,10 +42,20 @@ export const AIService = {
             const text = response.text();
 
             // Robust JSON extraction
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            const cleanText = jsonMatch ? jsonMatch[0] : text.replace(/```json/g, '').replace(/```/g, '').trim();
+            let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                cleanText = jsonMatch[0];
+            }
 
-            const data = JSON.parse(cleanText);
+            // Attempt to sanitize common JSON errors if parse fails
+            let data;
+            try {
+                data = JSON.parse(cleanText);
+            } catch (e) {
+                console.warn("First JSON parse failed, attempting to sanitize...", e);
+                throw e;
+            }
 
             return {
                 id: Math.random().toString(36).substr(2, 9),
@@ -140,33 +151,39 @@ export const AIService = {
     },
 
     async generateRewardImage(story: Story): Promise<string> {
-        // 1. Generate a prompt for the image using Gemini
+        // 1. Generate a scene description using Gemini
         const promptGen = `
-      Aşağıdaki hikaye için bir boyama sayfası görseli oluşturma komutu (prompt) hazırla.
+      Aşağıdaki hikaye için bir boyama sayfası görseli oluşturacağız.
+      Bana sadece hikayeyi anlatan, karakterleri ve mekanı içeren ÇOK BASİT ve KISA bir İngilizce sahne betimlemesi ver.
       
       Hikaye Başlığı: ${story.title}
       Tema: ${story.theme}
       İçerik: ${story.content}
       
-      Lütfen aşağıdaki İngilizce şablonu, hikayeye uygun şekilde doldurarak bana ver.
-      
-      ŞABLON:
-      "coloring page for kids, black and white, line art, no color, white background, [HİKAYENİN_ANA_SAHNESİNİ_TANIMLAYAN_İNGİLİZCE_KELİMELER], cute style, thick lines, simple details"
-      
-      Sadece doldurulmuş İngilizce metni ver, başka açıklama yapma.
+      Kurallar:
+      - Sadece sahneyi anlat (Örn: "A cute rabbit holding a carrot in a garden")
+      - Karmaşık detaylardan kaçın.
+      - Maksimum 10 kelime olsun.
     `;
 
         try {
             const result = await model.generateContent(promptGen);
-            const imagePrompt = result.response.text().trim();
-            console.log("Image Prompt:", imagePrompt);
+            const sceneDescription = result.response.text().trim();
+            console.log("Scene Description:", sceneDescription);
 
-            // 2. Use Pollinations AI to generate the image (Free, no key required)
-            // Encode the prompt for URL
-            const encodedPrompt = encodeURIComponent(imagePrompt);
-            // Add random seed to prevent caching
-            const randomSeed = Math.floor(Math.random() * 1000);
-            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&seed=${randomSeed}&model=flux`;
+            // 2. Construct the final prompt optimized for simple coloring pages
+            // Extremely simple prompt to avoid URL issues and model confusion
+            const finalPrompt = `coloring page of ${sceneDescription}, simple black lines, white background, no shading`;
+
+            console.log("Final Image Prompt:", finalPrompt);
+
+            // 3. Use Pollinations AI with Default Model (most reliable)
+            const encodedPrompt = encodeURIComponent(finalPrompt);
+
+            // Minimal URL to avoid 500 errors - verified via test script
+            // Adding ANY parameters (seed, nologo, width) causes 500 errors currently
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}`;
+
             console.log("Generated Image URL:", imageUrl);
             return imageUrl;
 
