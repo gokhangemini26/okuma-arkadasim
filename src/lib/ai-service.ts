@@ -19,10 +19,12 @@ export const AIService = {
       Seçilen karakterler: ${characterNames}
       
       Bu isimleri kullanarak didaktik bir hikaye yaz.
-      - Hikaye 200-250 kelime aralığında olmalı.
+      - Hikaye en az 300-400 kelime uzunluğunda olmalı. (Çok kısa olmasın)
+      - Giriş, Gelişme ve Sonuç bölümleri belirgin olsun.
+      - Bol bol diyalog ve detaylı betimlemeler kullan.
       - Okuyucular 5-10 yaş aralığında olacağı için hikayeler bu yaşlara hitap etmeli.
       - Etnik, ahlaki gibi sorunlar ve çekinceler içermemeli.
-      - Hikaye akıcı ve anlaşılır olmalı.
+      - Hikaye akıcı, eğlenceli ve anlaşılır olmalı.
       - Hikayenin başlığı da olsun.
       
       Çıktı formatı JSON olmalı:
@@ -146,24 +148,10 @@ export const AIService = {
       Tema: ${story.theme}
       İçerik: ${story.content}
       
-      Lütfen aşağıdaki İngilizce şablonu, hikayeye uygun şekilde doldurarak bana ver. Köşeli parantez içindeki yerleri hikayeden çıkarımlarla doldur.
+      Lütfen aşağıdaki İngilizce şablonu, hikayeye uygun şekilde doldurarak bana ver.
       
       ŞABLON:
-      "Create a coloring page illustration designed for children aged 5-10.
-      
-      Subject: Depict [ANA_KARAKTER_ADLARI_VE_CINSIYETLERI] while [HİKAYENİN_TEMEL_KONUSU/ORTAMI]. The scene must also include [EK_NESNELER_VEYA_DETAYLAR].
-      
-      Style & Technique:
-      
-      Line Art: Extremely bold, clean, and distinct black lines. The lines must be thick enough for easy coloring by young children, with clearly defined closed shapes.
-      
-      Color: Strictly black and white line art only. No shading, no gray tones, and no colors. Pure line art suitable for printing and manual coloring.
-      
-      Detail Level: The complexity should be appropriate for a 5-10 year old, having enough detail to be engaging but not so much as to be overwhelming. Focus on simple, fun, and recognizable shapes.
-      
-      Resolution: Generate the image at the maximum possible resolution (e.g., Ultra-High Resolution, 8K) to ensure crisp, clean edges for high-quality printing on standard paper sizes (like A4 or US Letter).
-      
-      Example Keywords for AI Model: children's coloring book style, thick lines, no fill, clean line art, print quality, high resolution, 8K, black and white."
+      "coloring page for kids, black and white, line art, no color, white background, [HİKAYENİN_ANA_SAHNESİNİ_TANIMLAYAN_İNGİLİZCE_KELİMELER], cute style, thick lines, simple details"
       
       Sadece doldurulmuş İngilizce metni ver, başka açıklama yapma.
     `;
@@ -178,7 +166,7 @@ export const AIService = {
             const encodedPrompt = encodeURIComponent(imagePrompt);
             // Add random seed to prevent caching
             const randomSeed = Math.floor(Math.random() * 1000);
-            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&seed=${randomSeed}`;
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=600&nologo=true&seed=${randomSeed}&model=flux`;
             console.log("Generated Image URL:", imageUrl);
             return imageUrl;
 
