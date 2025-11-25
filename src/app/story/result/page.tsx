@@ -17,19 +17,50 @@ export default function ResultPage() {
 
     const lastSession = user?.history[0];
 
+    const [loadingImage, setLoadingImage] = useState(false);
+
     useEffect(() => {
         if (!user || !currentStory || !lastSession) {
             router.push("/dashboard");
             return;
         }
 
-        // Generate reward if performance is good (mock logic: always generate for now)
-        const generateReward = async () => {
-            const image = await AIService.generateRewardImage(currentStory);
-            setRewardImage(image);
+        const loadRewardImage = async () => {
+            setLoadingImage(true);
+            try {
+                // 1. Get the URL from AI Service
+                const imageUrl = await AIService.generateRewardImage(currentStory);
+                console.log("Attempting to fetch image from:", imageUrl);
+
+                // 2. Fetch the image data directly (Client-side Proxy)
+                const response = await fetch(imageUrl);
+
+                if (!response.ok) {
+                    throw new Error(`Image fetch failed with status: ${response.status} ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                setRewardImage(objectUrl);
+                console.log("Image loaded successfully via Blob");
+
+            } catch (error) {
+                console.error("Failed to load reward image:", error);
+                // Fallback to placeholder
+                setRewardImage(`https://placehold.co/600x800/orange/white?text=${encodeURIComponent(currentStory.title)}`);
+            } finally {
+                setLoadingImage(false);
+            }
         };
 
-        generateReward();
+        loadRewardImage();
+
+        // Cleanup function to revoke object URL
+        return () => {
+            if (rewardImage && rewardImage.startsWith('blob:')) {
+                URL.revokeObjectURL(rewardImage);
+            }
+        };
     }, [user, currentStory, lastSession, router]);
 
     const handleDownload = async () => {
